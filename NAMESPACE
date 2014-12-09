@@ -1,0 +1,14 @@
+export( smnet, 
+	get_adjacency,
+        plot.smnet, 
+	predict.smnet, 
+       	summary.smnet, 
+	m, 
+	network, 
+	simulateNetwork)
+S3method(plot, smnet)
+S3method(summary, smnet)
+S3method(predict, smnet)
+
+
+import(SSN, splines, spam, dfoptim, RSQLite, igraph, DBI)
