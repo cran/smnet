@@ -1,35 +1,26 @@
-\name{predict.smnet}
-\alias{predict.smnet}
+\name{show_weights}
+\alias{show_weights}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{Predict From a Stream Network Model.}
-\description{
-Get predictions and standard errors for a new set of spatial locations and associated covariate values from a model fitted by \code{\link{smnet}}.
+\title{Search for and Validate Weights in an SSN Object}
+
+\description{Utility function for exploring the valid weights available within an SSN object.  Intended for validating columns within an SSN object before their use in a network smooth.}
+\usage{
+show_weights(SSNobject, adjacency, netID = 1)
 }
-\usage{\method{predict}{smnet}(object, newdata =  NULL, ...)}
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{object}{Object of class smnet, usually the result of a call to \code{smnet}.
-}
-\item{newdata}{New design matrix at which to make predictions}
-
-\item{...}{other arguments passed to \code{predict.smnet}
-}
+  \item{SSNobject}{\code{SpatialStreamNetwork} containing data to be searched for valid network weights}
+  \item{adjacency}{adjacency object corresponding to \code{SSNobject}, resulting from a call to \link{get_adjacency}}
+  \item{netID}{Positive integer indicating the network to investigate, if multiple networks are contained in\code{SSNobject}.  Default is 1.}
 }
 
-\value{
-%%  ~Describe the value returned
-%%  If it is a LIST, use
-\item{predictions}{vector of predictions corresponding to prediction points in the original \code{SpatialStreamNetwork} input object}
-\item{predictions.se}{vector of prediction standard errors}
-%% ...
-}
+\value{Prints the names of valid weight variables to the console.}
 
-\author{
-Alastair Rushworth
-}
+\author{Alastair Rushworth}
+
 
 \seealso{
-\code{\link{smnet}}
+\link{get_adjacency}, \link{network}
 }
 \examples{
 

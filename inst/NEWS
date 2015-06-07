@@ -1,0 +1,15 @@
+	CHANGES IN VERSION 2.0 
+
+    	-   	get_adjacency and smnet reworked so that SSN objects with multiple networks supported.  get_adjacency now returns a list containing the adjacency matrix and the binary id table from the SSN object.
+	-	significant changes to plotting of spatial networks
+	-	dependence on ‘dfoptim’ package not required, optimiser changed to ‘optim()’
+	-	show_weights() function added for exploring valid weights in data
+	-	autmomatic Shreve weights, “autoShreve”, option added for ‘weights’ argument in network if valid weights are not available
+	-	examples updated 
+	- maintainer email address changed to alastair.rushworth@strath.ac.uk
+
+	
+
+
+
+  

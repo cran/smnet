@@ -6,24 +6,35 @@ get_model_objects<-function(formula, data, adjacency,
   
   # INTEPRET THE FORMULA, FIND THE NAMES AND NUMBER OF DIFFERENT MODEL COMPONENTS
   # ------------------------------------------------------------------------------
+  adj         <- adjacency$adjacency
   n           <- nrow(data)
-  net         <- !is.null(adjacency)
-  n.segments  <- ifelse(net, nrow(adjacency), "NULL")
+  net         <- !is.null(adj)
+  n.segments  <- ifelse(net, nrow(adj), "NULL")
   n.terms     <- length(attr(terms(formulaout$formula), "variables")) - 2
   term.names  <- attr(terms(formulaout$formula), "term.labels")
   st3         <- substr(term.names, 1,3)
   st2         <- substr(term.names, 1,2)
   sm.names    <- term.names[st2 == "m("]
   net.names   <- term.names[st3 == "net"]
-  lin.names   <- term.names[!((st2 == "m(") | (st3 == "net"))]
+#   lin.names   <- term.names[!((st2 == "m(") | (st3 == "net"))]
   n.smooth    <- length(sm.names)
   n.net       <- length(net.names)
-  n.linear    <- length(lin.names)
+#   n.linear    <- length(lin.names)
+  
+  # need to obtain the number of columns in the model matrix that are simple linear ones
+  # do this by working out the number associated with smooth/ network terms and subtract
+  # this from number of columns in the data mat in formulaout$mf
+  smooth.variables  <- sum(unlist(lapply(formulaout$gp$smooth.spec, function(L) length(L$term))))
+  network.variables <- sum(unlist(lapply(formulaout$gp$smooth.spec, function(L) !is.null(L$weight))))
+  n.linear          <- ncol(as.matrix(formulaout$mf)) - smooth.variables - 1
+  if(n.linear > 0) lin.names         <- colnames(as.matrix(formulaout$mf))[2:(n.linear + 1)] else lin.names <- NULL
+  n.terms           <- n.linear + n.smooth + n.net
+
   variables   <- as.matrix(formulaout$mf[,-1])
   response    <- formulaout$mf[,1]
-  var.names   <- names(formulaout$mf[1,])[-1]
+  var.names   <- colnames(as.matrix(formulaout$mf[1,]))[-1]
   colnames(variables) <- var.names
-  sm.terms.names<-vector("list")
+  sm.terms.names <- vector("list")
 
   
   # POPULATE A LIST CONTAINING THE DIFFERENT PARTS OF THE DESIGN MATRIX
@@ -32,19 +43,30 @@ get_model_objects<-function(formula, data, adjacency,
   # intercept first - currently included by default
   X.list[[1]]  <- spam(1, ncol = 1, nrow = n)
   # subsequent n.linear columns are the linear covariates
-  if(n.linear>0) for(i in 1:n.linear) X.list[[i+1]] <- as.spam(variables[,i])
+  # remember to remove the means of each linear variable
+  if(n.linear > 0){
+    lin.means <- vector("numeric", length = n.linear)
+    for(i in 1:n.linear){
+      lin.means[i]  <- 0#mean(variables[,i])
+      variables[,i] <- variables[,i]# - lin.means[i]
+      X.list[[i+1]] <- as.spam(variables[,i])
+    }
+  } else {lin.means = NULL}
 
   # the next components of X.list are the univariate and bivariate smooth terms
   if(n.smooth>0){
     sm.basis <- varbs.len <- sm.cyclic <- vector("numeric", length=n.smooth)
     varbs.loc<- vector("list", length=n.smooth)
     for(i in 1:n.smooth){
+      if(net){
+        smooth.only <- formulaout$gp$smooth.spec[-which(unlist(lapply(formulaout$gp$smooth.spec, class)) == "network.spec")]
+      } else smooth.only <- formulaout$gp$smooth.spec
       # interpret the user specified basis, if supplied
-      user_basis  <- as.numeric(formulaout$gp$smooth.spec[[i]]$bs.dim)
-      sm.cyclic[i]<- formulaout$gp$smooth.spec[[i]]$cyclic
+      user_basis  <- as.numeric(smooth.only[[i]]$bs.dim)
+      sm.cyclic[i]<- smooth.only[[i]]$cyclic
       sm.basis[i] <- ifelse(user_basis == -1, 10, user_basis)
       # this is the name of the i^th smooth term
-      varbs.char     <- formulaout$gp$smooth.spec[[i]]$term
+      varbs.char     <- smooth.only[[i]]$term
       varbs.loc[[i]] <- match(varbs.char, var.names)
       varbs.len[i]   <- length(varbs.loc[[i]])
       varbs          <- variables[,varbs.loc[[i]]]
@@ -99,8 +121,8 @@ get_model_objects<-function(formula, data, adjacency,
         P.list    <- c(P.list, get_block_penalty(P, blockzero, (i+1+n.linear)))
       }
       if(varbs.len[i] == 2){
-        if((sm.cyclic == 1)|(sm.cyclic == T)) cyclic_1 <- T else cyclic_1 <- F
-        if((sm.cyclic == 2)|(sm.cyclic == T)) cyclic_2 <- T else cyclic_2 <- F
+        cyclic_1 <- F# if((sm.cyclic == 1)|(sm.cyclic == T)) cyclic_1 <- T else cyclic_1 <- F
+        cyclic_2 <- F#if((sm.cyclic == 2)|(sm.cyclic == T)) cyclic_2 <- T else cyclic_2 <- F
         Pmat1     <- get_penalty(sm.basis[i], cyclic = cyclic_1)
         Pmat2     <- get_penalty(sm.basis[i], cyclic = cyclic_2)
         Id        <- diag.spam(1, sm.basis[i]) 
@@ -121,7 +143,7 @@ get_model_objects<-function(formula, data, adjacency,
   # AND THE VECTOR OF WEIGHTS SPECIFIED BY THE USER THAT IS CONTAINED IN THE DATA
   # ------------------------------------------------------------------------------
   if(net){
-    adj.spam <- make_spam(adjacency)
+    adj.spam <- make_spam(adj)
     # create 2 penlaties, one across confluences
     pseudo.inds  <- which(colSums.spam(adj.spam) == 1)
     ij.nzero.adj <- triplet(adj.spam)$indices
@@ -147,7 +169,8 @@ get_model_objects<-function(formula, data, adjacency,
                Pwee.list = Pwee.list, response = response, net = net, n.linear = n.linear, 
                n.smooth = n.smooth, lin.names = lin.names, 
                sm.names = sm.names, control = control, 
-               ord = ord, rid_data = rid_data, netID = netID, weight = weight)
+               ord = ord, rid_data = rid_data, netID = netID, 
+               weight = weight, lin.means = lin.means)
   if((n.smooth)>0){
     output<-c(output, list(P.list = P.list, sm.basis = sm.basis, 
                            varbs.len = varbs.len, varbs.loc = varbs.loc, 

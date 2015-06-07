@@ -1,16 +1,16 @@
 Package: smnet
 Type: Package
-Title: Smoothing For Stream Network Data
-Version: 1.0
-Date: 2014-12-09
+Title: Smoothing for Stream Network Data
+Version: 2.0
+Date: 2015-06-07
 Depends: SSN, spam
-Imports: splines, dfoptim, RSQLite, igraph, DBI
+Imports: splines, RSQLite, igraph, DBI
 Author: Alastair Rushworth
-Maintainer: Alastair Rushworth <alastair.rushworth@glasgow.ac.uk>
-Description: Fits flexible additive models to data on stream networks, taking account of flow-connectivity of the network.  Models are fit using penalised least squares.
+Maintainer: Alastair Rushworth <alastair.rushworth@strath.ac.uk>
+Description: Fits flexible additive models to data on stream networks, taking account of flow-connectivity of the network.  Models are fitted using penalised least squares.
 License: GPL-2
 LazyLoad: yes
-Packaged: 2014-12-09 15:36:43 UTC; alastair
 NeedsCompilation: no
 Repository: CRAN
-Date/Publication: 2014-12-09 17:51:37
+Packaged: 2015-06-08 06:06:13 UTC; alastairrushworth
+Date/Publication: 2015-06-08 18:25:55

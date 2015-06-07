@@ -1,26 +1,17 @@
 
-plot_node<-function(x, coords = NULL, col = 3, cex = NULL, key = key, se = F, ...)
-{
+plot_full<-function(x, weight, netID, se, sites, shadow, legend.text, key, ...){  	
+  
   # break up beta_hat
   getcol    <- function(M) ifelse(ncol(M) == "NULL", 1, ncol(M)) 
   cov.dims  <- lapply(x$internals$X.list, getcol)    
   inds      <- unlist(cov.dims)
-  cum.inds  <- cumsum(inds)
   ord       <- order(x$internals$ord)
+  cum.inds  <- cumsum(inds)
   n.cov     <- length(x$internals$X.list)
   ests      <- vector("list", length = n.cov)
   ests[[1]] <- x$internals$beta_hat[1]
-  for(i in 1:(n.cov-1)){ests[[i+1]]<-x$internals$beta_hat[(cum.inds[i]+1):(cum.inds[i+1])]} 
-  fitted_segment <- ests[[n.cov]][ord]# + ests[[1]]
-  if(is.null(coords)){
-    # get midpoint locations for each rid, then put in order
-    data          <- getSSNdata.frame(x$ssn.object, Name = "Obs")
-    get_rid_midpt <- function(L) apply(L@Lines[[1]]@coords, 2, FUN = "mean") 
-    midpt_rids    <- lapply(x$ssn.object@lines, FUN = get_rid_midpt)
-    add.one       <- ifelse(min(as.numeric(x$internals$adjacency$rid_bid[,1])) == 0, 1, 0)
-    coords        <- Reduce("rbind", midpt_rids)[as.numeric(x$internals$adjacency$rid_bid[,1]) + add.one, ]
-    coords        <- coords[x$internals$ord,]
-  } 
+  for(i in 1:(n.cov-1)) ests[[i+1]] <- x$internals$beta_hat[(cum.inds[i]+1):(cum.inds[i+1])]
+  spatial_comp <- ests[[n.cov]] + ests[[1]]
   
   if(se){
     l.covs            <- lapply(x$internals$X.list, ncol)
@@ -32,11 +23,12 @@ plot_node<-function(x, coords = NULL, col = 3, cex = NULL, key = key, se = F, ..
     left1             <- forwardsolve.spam(x$internals$U, t(new.X), transpose = T)
     left2             <- backsolve.spam(x$internals$U, left1, transpose = T)
     vec               <- x$internals$X.spam %*% left2
-    fitted_segment    <- sqrt(colSums(vec*vec)*x$internals$sigma.sq)   
+    spatial_comp      <- sqrt(colSums(vec*vec)*x$internals$sigma.sq)   
   }
   
+  fitted_segment <- spatial_comp[ord]
   # SET UP THE COLOUR SCALE FOR PLOTTING
-  nlevels      <- 25
+  nlevels      <- 20
   zlim         <- range(fitted_segment, finite = TRUE)
   brks         <- pretty(zlim, n = 10)
   nclasses     <- length(brks) - 1 
@@ -55,39 +47,57 @@ plot_node<-function(x, coords = NULL, col = 3, cex = NULL, key = key, se = F, ..
   plot.new()
   plot.window(xlim = c(0, 1), ylim = range(brks), xaxs = "i", yaxs = "i")
   
-  # PLOT THE LEGEND IF REQUESTED
   if(key){
+    # PLOT THE LEGEND
     rect(0, brks[-length(brks)], 1, brks[-1L], col = colorPalette)
     axis(4)
+    mtext(side = 4, legend.text, line = 2)
     box()
   }
   
-  # SET UP THE PLOTTING OF THE NETWORK NODES
-  nnodes    <- length(fitted_segment)
-  col.nums  <- cut(as.vector(fitted_segment), breaks = brks, labels = FALSE)
-  coord     <- coords
-  col       <- colorPalette[col.nums]
-  if(is.null(cex)) cex <- 10/log(nnodes)
-
-  # SET UP PLOTTING DEFAULTS AND UPDATE FROM ...
-  default.parameters <- list(xlim = range(coord[,1]), ylim = range(coord[,2]))
+  # GET WEIGHT IF REQUESTED
+  if(!is.null(weight)) shreve  <- adjacency_to_shreve(adjacency = x$internals$adjacency)[ord]
+  default.parameters <- list(xlim = range(x$ssn.object@bbox[1,]), ylim = range(x$ssn.object@bbox[2,]))
   updated.parameters <- modifyList(default.parameters, list(...))
   
-  
-  # PLOT THE NETWORK NODES
+  # PLOT THE FULL NETWORK
   mar      <- mar.orig
   mar[4L]  <- 1
   par(mar = mar)
   plot.new()
   do.call(plot.window, updated.parameters)
-  for(i in 1:ncol(x$internals$adjacency[[1]])){
-    nums <- which(!x$internals$adjacency[[1]][,i] == 0)
-    if(length(nums) > 0){
-      for(j in 1:length(nums)){
-        segments(x0 = coord[i,1], y0 = coord[i,2],
-                 x1 = coord[nums[j],1], y1 = coord[nums[j],2], lwd = 1)
+  data      <- x$ssn.object@data
+  netIDinds <- which(data$netID == netID)
+  # create quantile breaks
+  reorder      <- order(x$internals$ord)
+  lower.breaks <- c(min(fitted_segment, na.rm = T) - .0001, brks)
+  upper.breaks <- c(brks, max(fitted_segment, na.rm = T))
+  for(k in 1:nclasses) {
+    for(i in 1:length(netIDinds)){
+      z <- netIDinds[i]
+      lwd_i <- ifelse(!is.null(weight), weight*(log(shreve[i]) + 1), 1)
+      for(j in 1:length(x$ssn.object@lines[[z]])){
+        if(fitted_segment[i] > lower.breaks[k] & fitted_segment[i] <= upper.breaks[k])
+          lines(x$ssn.object@lines[[z]]@Lines[[j]]@coords, col = 1, lwd = lwd_i + shadow)
       }
     }
+  }
+  for(k in 1:nclasses) {
+    for(i in 1:length(netIDinds)){
+      z <- netIDinds[i]
+      lwd_i <- ifelse(!is.null(weight), weight*(log(shreve[i]) + 1), 1)
+      for(j in 1:length(x$ssn.object@lines[[z]])){
+        if(fitted_segment[i] > lower.breaks[k] & fitted_segment[i] <= upper.breaks[k])
+          lines(x$ssn.object@lines[[z]]@Lines[[j]]@coords, col = colorPalette[k], lwd = lwd_i)
+      }
+    }
+  }
+  if(sites){
+    data_obs <- getSSNdata.frame(x$ssn.object)
+    data_obs <- data_obs[data_obs$netID == netID, ]
+    data_obs_locs <- unique(paste(data_obs$NEAR_X, data_obs$NEAR_Y, sep = "_"))
+    data_obs_locs <- Reduce("rbind", strsplit(data_obs_locs, "[_]"))
+    points(data_obs_locs[,1], data_obs_locs[,2], pch = 20, col = 1, cex = 1.5)
   }
   do.call(title, updated.parameters)
   if(is.null(updated.parameters$xaxt)){
@@ -100,6 +110,5 @@ plot_node<-function(x, coords = NULL, col = 3, cex = NULL, key = key, se = F, ..
     yticks  <- format(seq(ylimits[1], ylimits[2], length.out = 5), digits = 2, zero.print = T)
     Axis(x = ylimits, at = yticks, side = 2, labels = yticks)
   }
-  points(coord, pch = 21, bg =  "black", cex = as.vector(cex)+0.1, col = 1)
-  points(coord, pch = 21, bg =  as.vector(col), cex = as.vector(cex), col = 1)
 }
+

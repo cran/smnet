@@ -4,83 +4,120 @@
 \title{Plot a Stream Network Model}
 \description{Plot linear, univariate and bivariate smooth effects and network smooth terms that resulting from a call to \code{\link{smnet}}.  }
 \usage{
-  \method{plot}{smnet}(x, type = "covariates", se = FALSE, res = FALSE, coords = NULL, key = TRUE, ...)
+  \method{plot}{smnet}(x, type = "covariates", se = FALSE, res = FALSE, weight = NULL, 
+  sites = FALSE, shadow = 0, key = TRUE, legend.text = NULL, ...)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{x}{An object of class \bold{smnet}
   }
-  \item{type}{Character string identifying the type of plot to be produced.  The default, "\code{covariates}", produces plots of all linear and smooth components (the latter corresponding to each appearance of \code{\link{m}} in the model formula).   "\code{node}" plots the spatial network model component associated with a use of \code{\link{network}} in the model formula; the plot uses a set of nodes each associated with a stream stretch and plotted at their geographical midpoints.  The colour of each node corresponds to the fitted value associated with that stream segment.  "\code{segments}" plots the spatial network model component associated with a use of \code{\link{network}} in the model formula; segments are plotted using information within an \bold{SSN} object (may be slower than "\code{node}" for larger networks).
+  \item{type}{Character string identifying the type of plot to be produced.  The default, "\code{covariates}", produces plots of all linear and smooth components (the latter corresponding to each appearance of \code{\link{m}} in the model formula).  "\code{network-full}" plots the stream network fitted mean using the full set of spatial points contained in the associated \code{SSN} object.   "\code{network-segments}" plots the stream network fitted mean using a set of connnected line segments to represent the spatial network, this can be faster for large networks than "\code{network-full}".  "\code{network-node}" plots the stream network fitted mean using a nodes-and-edges representation for the stream network, where nodes are plotted at the mid-point of each unique stream segment (as defined by \code{rid}), and an edge indicates that a pair of segments are direct neighbours connected via a confluence.
   }
-  \item{se}{Logical.  When TRUE (the default), calculates and adds standard errors to plots of linear and smooth components the default is TRUE.  Setting to FALSE may be be quicker for very large data sets.}
-  \item{res}{Logical.  Plots partial residuals on linear and smooth component plots when TRUE, the default.  Ignored if cov = FALSE.}
-  \item{coords}{A 2-column matrix of coordinates required to plot spatial smooths when input data was not an \bold{SSN} object
-  }
+  \item{se}{Logical.  When TRUE and \code{type = }"\code{covariates}", standard errors are shown on plots of linear and smooth terms.  When \code{type = }"\code{node}", "\code{segment}" or "\code{full}" spatial standard errors are plotted.}
+  \item{res}{Logical.  When TRUE, partial residuals are shown on plots of linear and smooth component.  Ignored when  \code{type = }"\code{node}", "\code{segment}" or "\code{full}".}
   \item{key}{Logical.  Plots a colour legend for the node plot when set to TRUE (the default.  Ignored when node = FALSE.)
+  }
+    \item{weight}{Positive real number that scales stream segment widths (as determined using Shreve order) to indicate relative size of stream segments.  Ignored when \code{type = }"\code{covariate}".  Currently only "\code{autoShreve}" is supported, defaults to \code{NULL} in which all streams segments are plotted with lines with identical widths.
+  }
+  \item{sites}{Logical indicating whether locations of observation sites should be added to spatial plots.  Ignored when \code{type = }"\code{covariate}" and defaults to \code{FALSE}. 
+  }
+  \item{shadow}{Positive scalar that adds a black outline to spatial stream segment plots, useful if the colour scale has many light colours.  Ignored when \code{type = }"\code{covariate}" and defaults to 0 (no shadow is drawn). 
+  }
+    \item{legend.text}{Character string for annotating colour key for spatial plots.  Ignored when \code{type = }"\code{covariate}".
   }
     \item{...}{Other arguments passed to plot
   }
 }
 
 \examples{
+
 # Set up an SSN object - this part taken 
 # from the SSN:::SimulateOnSSN help file
-library(SSN)
-set.seed(101)
-## simulate a SpatialStreamNetwork object
-raw1.ssn <- createSSN(n = 100,
-    obsDesign = binomialDesign(50), predDesign = binomialDesign(50),
-  importToR = TRUE, path = paste(tempdir(),"/sim1", sep = ""))
+example_network<- createSSN(
+                     n          = 50,
+                     obsDesign  = binomialDesign(200), 
+                     predDesign = binomialDesign(50),
+                     importToR  = TRUE, 
+                     path = paste(tempdir(),"/example_network",sep = ""),
+                     treeFunction = iterativeTreeLayout
+                     )
+
+# plot the simulated network structure with prediction locations
+# plot(example_network, bty = "n", xlab = "x-coord", ylab = "y-coord")
 
 ## create distance matrices, including between predicted and observed
-createDistMat(raw1.ssn, "preds", o.write=TRUE, amongpred = TRUE)
+createDistMat(example_network, "preds", o.write=TRUE, amongpred = TRUE)
 
 ## extract the observed and predicted data frames
-raw1DFobs <- getSSNdata.frame(raw1.ssn, "Obs")
-raw1DFpred <- getSSNdata.frame(raw1.ssn, "preds")
+observed_data            <- getSSNdata.frame(example_network, "Obs")
+prediction_data          <- getSSNdata.frame(example_network, "preds")
 
-## add a continuous covariate randomly
-raw1DFobs[,"X1"] <- rnorm(length(raw1DFobs[,1]))
-raw1DFpred[,"X1"] <- rnorm(length(raw1DFpred[,1]))
+## associate continuous covariates with the observation locations
+#  data generated from a normal distribution
+obs                      <- rnorm(200)
+observed_data[,"X"]      <- obs
+observed_data[,"X2"]     <- obs^2
 
-## add a categorical covariate randomly
-raw1DFobs[,"F1"] <- as.factor(sample.int(3,length(raw1DFobs[,1]), replace = TRUE))
-raw1DFpred[,"F1"] <- as.factor(sample.int(3,length(raw1DFpred[,1]), replace = TRUE))
+## associate continuous covariates with the prediction locations
+#  data generated from a normal distribution
+pred                     <- rnorm(50) 
+prediction_data[,"X"]    <- pred
+prediction_data[,"X2"]   <- pred^2
 
-## simulate Gaussian data
-sim1.out <- SimulateOnSSN(raw1.ssn,
-  ObsSimDF = raw1DFobs,
-	PredSimDF = raw1DFpred,
-	PredID = "preds",
-	formula = ~ X1 + F1,
-	coefficients = c(1, .5, -1, 1),
-	CorModels = c("Exponential.tailup", "Exponential.taildown"),
-	use.nugget = TRUE,
-	use.anisotropy = FALSE,
-	CorParms = c(2, 5, 2, 5, 0.1),
-	addfunccol = "addfunccol")
+## simulate some Gaussian data that follows a 'tail-up' spatial process
+sims <- SimulateOnSSN(
+               ssn.object      = example_network, 
+               ObsSimDF        = observed_data, 
+               PredSimDF       = prediction_data,  
+               PredID          = "preds",  
+               formula         = ~ 1 + X,
+               coefficients    = c(1, 10),
+               CorModels       = c("Exponential.tailup"), 
+               use.nugget      = TRUE,
+               CorParms        = c(10, 5, 0.1),
+               addfunccol      = "addfunccol")$ssn.object
 
-## extract the ssn.object
-sim1.ssn <- sim1.out$ssn.object
 
 ## extract the observed and predicted data frames, now with simulated values
-sim1DFobs <- getSSNdata.frame(sim1.ssn, "Obs")
-sim1DFpred <- getSSNdata.frame(sim1.ssn, "preds")
-
-## store simulated prediction values, and then create NAs in their place
-sim1preds <- sim1DFpred[,"Sim_Values"]
+sim1DFpred         <- getSSNdata.frame(sims, "preds")
+sim1preds          <- sim1DFpred[,"Sim_Values"]
 sim1DFpred[,"Sim_Values"] <- NA
-sim1.ssn <- putSSNdata.frame(sim1DFpred, sim1.ssn, "preds")
+sims               <- putSSNdata.frame(sim1DFpred, sims, "preds")
 
-# create the adjacency matrix for use with SmoothNetwork
-adjacency<-get_adjacency(paste(tempdir(),"/sim1", sep = ""))
+# create the adjacency matrix for use with smnet
+adjacency    <- get_adjacency(
+                  paste(tempdir(), "/example_network", sep = ""), 
+                  net = 1
+                  )
 
-lmP<-smnet(formula = Sim_Values~1 + 
-          network(adjacency = adjacency, weight = "addfunccol", netID = 1), 
-          data.object = sim1.ssn)
-          
-plot(lmP, type = "segments")
-plot(lmP, type = "nodes")
+# not run - plot the adjacency matrix
+# display(adjacency[[1]])
+
+# sometimes it is useful to see which varaibles are valid network weights 
+# in the data contained within the SSN object
+show_weights(sims, adjacency)
+
+# fit a penalised spatial model to the stream network data
+# Sim_Values are quadratic in the X covariate.  To highlight 
+# the fitting of smooth terms, this is treated as non-linear 
+# and unknown using m().
+mod_smn       <- smnet(formula = Sim_Values ~ m(X) + m(X2) + 
+network(adjacency = adjacency, weight = "shreve"), 
+                       data.object = sims, netID = 1)
+
+# not run - plot different summaries of the model
+plot(mod_smn, type = "covariates")
+plot(mod_smn, type = "nodes")
+plot(mod_smn, type = "segments", weight = 4, shadow = 2)
+plot(mod_smn, type = "full", weight = 4, shadow = 2)
+
+# obtain predictions at the prediction locations and plot 
+# against true values
+preds <- predict(mod_smn, newdata = getSSNdata.frame(sims, "preds"))
+plot(preds$predictions, sim1preds)
+
+# obtain summary of the fitted model
+summary(mod_smn)
 }
 
 
