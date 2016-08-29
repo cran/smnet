@@ -2,7 +2,7 @@
 get_model_objects<-function(formula, data, adjacency, 
                                  response.locs, formulaout,
                                  control, ord = NULL, rid_data = NULL, 
-                                 netID = NULL, weight = NULL){
+                                 netID = NULL, weight = NULL, fixed.df){
   
   # INTEPRET THE FORMULA, FIND THE NAMES AND NUMBER OF DIFFERENT MODEL COMPONENTS
   # ------------------------------------------------------------------------------
@@ -16,20 +16,23 @@ get_model_objects<-function(formula, data, adjacency,
   st2         <- substr(term.names, 1,2)
   sm.names    <- term.names[st2 == "m("]
   net.names   <- term.names[st3 == "net"]
-#   lin.names   <- term.names[!((st2 == "m(") | (st3 == "net"))]
   n.smooth    <- length(sm.names)
   n.net       <- length(net.names)
-#   n.linear    <- length(lin.names)
+  n.linear    <- n.terms - n.net - n.smooth
+  n.terms     <- n.linear + n.smooth + n.net
+  
   
   # need to obtain the number of columns in the model matrix that are simple linear ones
   # do this by working out the number associated with smooth/ network terms and subtract
   # this from number of columns in the data mat in formulaout$mf
   smooth.variables  <- sum(unlist(lapply(formulaout$gp$smooth.spec, function(L) length(L$term))))
   network.variables <- sum(unlist(lapply(formulaout$gp$smooth.spec, function(L) !is.null(L$weight))))
-  n.linear          <- ncol(as.matrix(formulaout$mf)) - smooth.variables - 1
-  if(n.linear > 0) lin.names         <- colnames(as.matrix(formulaout$mf))[2:(n.linear + 1)] else lin.names <- NULL
-  n.terms           <- n.linear + n.smooth + n.net
-
+  # n.linear          <- ncol(as.matrix(formulaout$mf)) - smooth.variables - 1
+  if(n.linear > 0){
+    lin.names  <- colnames(as.matrix(formulaout$mf))[2:(n.linear + 1)]
+  } else {
+    lin.names <- NULL
+  } 
   variables   <- as.matrix(formulaout$mf[,-1])
   response    <- formulaout$mf[,1]
   var.names   <- colnames(as.matrix(formulaout$mf[1,]))[-1]
@@ -39,7 +42,7 @@ get_model_objects<-function(formula, data, adjacency,
   
   # POPULATE A LIST CONTAINING THE DIFFERENT PARTS OF THE DESIGN MATRIX
   # ------------------------------------------------------------------------------
-  X.list  <-  vector("list", length = (n.terms+1))
+  X.list  <-  vector("list", length = (n.terms + 1))
   # intercept first - currently included by default
   X.list[[1]]  <- spam(1, ncol = 1, nrow = n)
   # subsequent n.linear columns are the linear covariates
@@ -53,34 +56,31 @@ get_model_objects<-function(formula, data, adjacency,
     }
   } else {lin.means = NULL}
 
-  # the next components of X.list are the univariate and bivariate smooth terms
-  if(n.smooth>0){
-    sm.basis <- varbs.len <- sm.cyclic <- vector("numeric", length=n.smooth)
-    varbs.loc<- vector("list", length=n.smooth)
+  # the next components of X.list are the univariate / bivariate / n-variate smooth terms
+  if(n.smooth > 0){
+    # collect the user / default basis dim & whether cyclic smooths are needed
+    sm.basis  <- sm.cyclic <- vector("list", length = n.smooth)
+    varbs.len <- vector("numeric", length=n.smooth)
+    varbs.loc <- vector("list", length=n.smooth)
+    # loop over the smooth terms and construct each part of the model matrix, place in X.list
     for(i in 1:n.smooth){
       if(net){
         smooth.only <- formulaout$gp$smooth.spec[-which(unlist(lapply(formulaout$gp$smooth.spec, class)) == "network.spec")]
       } else smooth.only <- formulaout$gp$smooth.spec
-      # interpret the user specified basis, if supplied
-      user_basis  <- as.numeric(smooth.only[[i]]$bs.dim)
-      sm.cyclic[i]<- smooth.only[[i]]$cyclic
-      sm.basis[i] <- ifelse(user_basis == -1, 10, user_basis)
+      # interpret the user specified basis vector, if supplied
+      user_basis       <- as.numeric(smooth.only[[i]]$bs.dim)
+      sm.basis[[i]]    <- ifelse(user_basis == -1, 10, user_basis)
+      # interpret the user specified cyclical vector, if supplied
+      sm.cyclic[[i]]   <- smooth.only[[i]]$cyclic
       # this is the name of the i^th smooth term
       varbs.char     <- smooth.only[[i]]$term
       varbs.loc[[i]] <- match(varbs.char, var.names)
       varbs.len[i]   <- length(varbs.loc[[i]])
       varbs          <- variables[,varbs.loc[[i]]]
       sm.terms.names[[i]] <- varbs.char
-      # if univariate construct a 1-D B-spline basis
-      if(varbs.len[i] == 1) X.list[[i+1+n.linear]]<-b_spline_basis(x=varbs, nseg = (sm.basis[i] - 3))#, 
-#                                                                    cyclic = sm.cyclic[i], deg=3)
-      # if bivariate construct a tensor B-spline basis - current higher order not supported
-      if(varbs.len[i] == 2){
-        a1<-b_spline_basis(x=varbs[,1], nseg = (sm.basis[i]-3), deg=3)#, cyclic = (sm.cyclic[i] == 1)|(sm.cyclic[i] == T))
-        a2<-b_spline_basis(x=varbs[,2], nseg = (sm.basis[i]-3), deg=3)#, cyclic = (sm.cyclic[i] == 2)|(sm.cyclic[i] == T))
-        X.list[[i + 1 + n.linear]] <- b1<-make_spam(not_sparse_box_product(a1, a2))
-        constraint<-crossprodspam(b1)
-      }
+      # this function can calculate any-dimensional tensor smoothing bases
+      X.list[[i + 1 + n.linear]] <- b1 <- construct_bspline_basis(variables = varbs, dimensions = sm.basis[[i]], 
+                                                                  cyclic = sm.cyclic[[i]], range.variables = varbs)
     }
   }
   
@@ -93,14 +93,15 @@ get_model_objects<-function(formula, data, adjacency,
       list(i = 1:n, j = (as.numeric(response.locs)+add.one),  rep(1, n)), 
       nrow = n, ncol = n.segments)
     # this identity matrix is going to be a ridge penalty for the network component
-    networkStabiliser<-diag.spam(1, n.segments)
+    # networkStabiliser <- diag.spam(1, n.segments)
+    networkStabiliser <- crossprodspam(X.list[[n.linear+n.smooth+2]])
   }
   
   # summaries of X.list, convert to a sparse spam object, concatenate and crossprod
   X.dim          <- lapply(X.list, ncol)
   X.list         <- lapply(X.list, make_spam)
   X.spam         <- Reduce("cbind", X.list)
-  XTX.spam       <- info <- t(X.spam)%*%X.spam
+  XTX.spam       <- info <- t(X.spam) %*% X.spam
   
   # POPULATE A LIST CONTAINING THE DIFFERENT PENALTY MATRICES
   # IF I^TH COMPONENT HAS MORE THAN ONE PENALTY, THESE ARE CONTAINED IN A
@@ -115,26 +116,12 @@ get_model_objects<-function(formula, data, adjacency,
   # first start with univariate smooth terms
   if(n.smooth>0){
     for(i in 1:n.smooth){
-      if(varbs.len[i] == 1){
-        P         <- get_penalty(sm.basis[i], cyclic = F)#sm.cyclic[i])
-        Pwee.list <- c(Pwee.list, list(P=P))
-        P.list    <- c(P.list, get_block_penalty(P, blockzero, (i+1+n.linear)))
-      }
-      if(varbs.len[i] == 2){
-        cyclic_1 <- F# if((sm.cyclic == 1)|(sm.cyclic == T)) cyclic_1 <- T else cyclic_1 <- F
-        cyclic_2 <- F#if((sm.cyclic == 2)|(sm.cyclic == T)) cyclic_2 <- T else cyclic_2 <- F
-        Pmat1     <- get_penalty(sm.basis[i], cyclic = cyclic_1)
-        Pmat2     <- get_penalty(sm.basis[i], cyclic = cyclic_2)
-        Id        <- diag.spam(1, sm.basis[i]) 
-        Pwee1     <- kronecker.spam(Pmat1,  Id)
-        Pwee2     <- kronecker.spam(Id, Pmat2)
-        P1        <- get_block_penalty(Pwee1, blockzero, (i+1+n.linear))
-        P2        <- get_block_penalty(Pwee2, blockzero, (i+1+n.linear))
-        Pwee.list <- c(Pwee.list, list(Pw1=Pwee1 , Pw2=Pwee2))
-        P.list[[length(P.list)+1]]<-list(P1 , P2)
-      }
+      Pout <- construct_bspline_penalty(variables_length = varbs.len[i], dimensions = sm.basis[[i]], 
+                                        term.number = i + 1 + n.linear, blockzero = blockzero, 
+                                        cyclic = sm.cyclic[[i]])
+      Pwee.list[[length(P.list)+1]] <- Pout$P_wee_list
+      P.list[[length(P.list)+1]]    <- Pout$P_list
     }
-    P.flat<-make_flat(P.list)
   }
   
 
@@ -160,18 +147,20 @@ get_model_objects<-function(formula, data, adjacency,
     P.seg        <- Pwee <- list()
     Pwee         <- c(Pwee, D2 = D2, ID = networkStabiliser)
     Pwee.list    <- c(Pwee.list, list(Pwee))
-    P.seg        <- c(P.seg, P2 = P2, get_block_penalty(networkStabiliser, blockzero, i = n.terms + 1))
+    netpen       <- get_block_penalty(networkStabiliser, blockzero, i = n.terms + 1)
+    diag.spam(netpen)[1:(n.linear + 1)] <- 0
+    P.seg        <- c(P.seg, P2 = P2, netpen)
     P.list       <- c(P.list, list(P.seg))
   }
   
-  output<-list(X.list = X.list, X.spam = X.spam, XTX.spam = XTX.spam, 
-               variables = variables, adjacency = adjacency, P.list = P.list,
-               Pwee.list = Pwee.list, response = response, net = net, n.linear = n.linear, 
-               n.smooth = n.smooth, lin.names = lin.names, 
-               sm.names = sm.names, control = control, 
-               ord = ord, rid_data = rid_data, netID = netID, 
-               weight = weight, lin.means = lin.means)
-  if((n.smooth)>0){
+  output  <- list(X.list = X.list, X.spam = X.spam, XTX.spam = XTX.spam, 
+                 variables = variables, adjacency = adjacency, P.list = P.list,
+                 Pwee.list = Pwee.list, response = response, net = net, n.linear = n.linear, 
+                 n.smooth = n.smooth, lin.names = lin.names, 
+                 sm.names = sm.names, control = control, 
+                 ord = ord, rid_data = rid_data, netID = netID, 
+                 weight = weight, lin.means = lin.means, fixed.df = fixed.df)
+  if((n.smooth) > 0){
     output<-c(output, list(P.list = P.list, sm.basis = sm.basis, 
                            varbs.len = varbs.len, varbs.loc = varbs.loc, 
                            sm.terms.names=sm.terms.names, sm.cyclic = sm.cyclic))

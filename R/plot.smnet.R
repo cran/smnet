@@ -4,9 +4,13 @@ plot.smnet<- function(x,
                       res    = FALSE, 
                       weight = NULL,
                       sites  = FALSE,
+                      sites.col   = NULL,
+                      sites.cex   = 1,
+                      network.col = NULL,
                       shadow = 0,
                       key    = TRUE,
                       legend.text = NULL,
+                      legend.range = NULL,
                       ...)
 {
   ### ----------------------------------------
@@ -14,23 +18,18 @@ plot.smnet<- function(x,
   ### ----------------------------------------
   netID    <- x$internals$netID
   if(!class(x) == "smnet") stop("x must be an object of class 'smnet'")
-  if((type %in% c("nodes", "segments", "full")) && (res == T)) warning("Ignoring 'res' argument, since spatial plot requested")
+  if((type %in% c("network-segments", "network-full", "network-gmaps")) && (res == T)) warning("Ignoring 'res' argument, since spatial plot requested")
   
 
-  ### ------------------------------------------------
-  ### PLOT NETWORK USING NODE AND EDGE REPRESENTATION
-  ### ------------------------------------------------
-  if(type == "nodes"){
-    if(!x$internals$net) stop("No spatial network component to plot in x")
-    plot_node(x, coords = NULL, key = key, se = se, ...)
-  }
-  
   ### -------------------------------------------
   ### PLOT NETWORK USING CONNECTED LINE SEGMENTS
   ### -------------------------------------------
   if(type == "segments"){
     if(!x$internals$net) stop("No spatial network component to plot in x")
-    plot_segments(x, weight = weight, netID = netID, se = se, sites = sites, shadow = shadow, ...) 
+    plot_segments(x, weight = weight, netID = netID, se = se, sites = sites, shadow = shadow, 
+                  legend.text = legend.text, legend.range = legend.range, key = key, 
+                  sites.col = sites.col, sites.cex = sites.cex,
+                  network.col = network.col, ...) 
   }
   
   ### --------------------------------------------
@@ -39,8 +38,27 @@ plot.smnet<- function(x,
   if(type == "full"){
     if(!x$internals$net) stop("No spatial network component to plot in x")
       plot_full(x, weight = weight, netID = netID, se = se, sites = sites, shadow = shadow, 
-                legend.text = legend.text, key = key, ...) 
+                legend.text = legend.text, legend.range = legend.range, key = key, 
+                sites.col = sites.col, sites.cex = sites.cex,
+                network.col = network.col, ...) 
   }
+  
+  # ### --------------------------------------------
+  # ### PLOT NETWORK ON A GOOGLE MAP  - coming soon
+  # ### --------------------------------------------
+  # if(type == "gmaps"){
+  # googleOptions = NULL,
+  #   zoom        <- googleOptions$zoom
+  #   SCALE       <- googleOptions$SCALE
+  #   maptype     <- googleOptions$maptype
+  #   destfile    <- ifelse(is.null(googleOptions$destfile),  "map.png", googleOptions$destfile)
+  #   if(!x$internals$net) stop("No spatial network component to plot in x")
+  #   plot_gmaps(x, weight = weight, netID = netID, se = se, sites = sites, 
+  #              shadow = shadow, legend.text = legend.text, key = key,
+  #              maptype = maptype, zoom = zoom, SCALE = SCALE,
+  #              sites.col = sites.col, sites.cex = sites.cex, network.col = network.col, 
+  #              destfile = destfile, ...)
+  # }
   
   ### ----------------------------------------
   ### PLOT SMOOTH AND LINEAR COVARIATES 

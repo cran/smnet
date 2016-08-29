@@ -9,7 +9,7 @@ create_component_design<-function(varb, X.list, j, k, sm=T){
   # get column dimensions of other components
   l.covs<-lapply(X.list, ncol)
   component.size<-l.covs[[j]]
-  if(sm) new.basis<-make_spam(bbase(new.varb, nseg = (component.size-3)))
+  if(sm) new.basis<-b_spline_basis(new.varb, nseg = (component.size-3))
   if(!sm) new.basis<-as.matrix(new.varb)
   empty.X.list<-lapply(l.covs, make_sparse, nrow = 100)
   empty.X.list[[j]]<-new.basis

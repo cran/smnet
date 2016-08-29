@@ -1,6 +1,4 @@
-m<-function (...,  k = -1) 
-{
-  cyclic <- F
+m <- function (...,  k = -1, cyclic = F) {
   vars   <- as.list(substitute(list(...)))[-1]
   d      <- length(vars)
   term   <- deparse(vars[[1]], backtick = TRUE, width.cutoff = 500)

@@ -16,15 +16,15 @@ make_spam<-function(M){
   else as.spam(as.spam.dgCMatrix(as(M, "dgCMatrix")))
 }
 
-# take list of lists and collapse to a single longer list
-make_flat<-function(List){
-  new.list<-vector("list")
-  for(i in 1:length(List)){
-    if(!class(List[[i]]) == "list") new.list[[length(new.list)+1]]<-List[[i]]
-    else
-      for(j in 1:length(List[[i]])){
-        new.list[[length(new.list)+1]]<-List[[i]][[j]]
-      }
-  }
-  new.list
-}
+# # take list of lists and collapse to a single longer list
+# make_flat<-function(List){
+#   new.list<-vector("list")
+#   for(i in 1:length(List)){
+#     if(!class(List[[i]]) == "list") new.list[[length(new.list)+1]]<-List[[i]]
+#     else
+#       for(j in 1:length(List[[i]])){
+#         new.list[[length(new.list)+1]]<-List[[i]][[j]]
+#       }
+#   }
+#   new.list
+# }

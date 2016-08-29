@@ -108,10 +108,9 @@ network(adjacency = adjacency, weight = "shreve"),
                        data.object = sims, netID = 1)
 
 # not run - plot different summaries of the model
-plot(mod_smn, type = "covariates")
-plot(mod_smn, type = "nodes")
-plot(mod_smn, type = "segments", weight = 4, shadow = 2)
-plot(mod_smn, type = "full", weight = 4, shadow = 2)
+plot(mod_smn, type = "network-covariates")
+plot(mod_smn, type = "network-segments", weight = 4, shadow = 2)
+plot(mod_smn, type = "network-full", weight = 4, shadow = 2)
 
 # obtain predictions at the prediction locations and plot 
 # against true values

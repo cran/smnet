@@ -4,4 +4,6 @@ S3method(summary, smnet)
 S3method(predict, smnet)
 
 
-import(SSN, splines, spam, RSQLite, igraph, DBI)
+import(SSN, splines, DBI, RSQLite, methods, stats, graphics, spam)
+importFrom("grDevices", "heat.colors")
+importFrom("utils", "modifyList")

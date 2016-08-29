@@ -8,7 +8,7 @@ Specify Smooth Terms in Formulae
 Function used to set up univariate or bivariate smooth terms based on P-splines, for use within a call to \code{\link{smnet}}.   
 }
 \usage{
-m(..., k = -1)
+m(..., k = -1, cyclic = F)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -17,6 +17,9 @@ one or more variables for creating P-spline smooths
 }
   \item{k}{
 integer defining the number of uniformly spaced B-spline basis functions for the smooth, default is 10.  For 2d (and higher) smooths, this is the marginal basis size.
+}
+ \item{cyclic}{
+logical vector indicating whether the smooth should be cyclic.  Based on the harmonic smoother of Eiler and Marx (2004)
 }
 }
 
@@ -116,7 +119,6 @@ network(adjacency = adjacency, weight = "shreve"),
 
 # not run - plot different summaries of the model
 plot(mod_smn, type = "covariates")
-plot(mod_smn, type = "nodes")
 plot(mod_smn, type = "segments", weight = 4, shadow = 2)
 plot(mod_smn, type = "full", weight = 4, shadow = 2)
 

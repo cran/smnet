@@ -102,7 +102,6 @@ network(adjacency = adjacency, weight = "shreve"),
 
 # not run - plot different summaries of the model
 plot(mod_smn, type = "covariates")
-plot(mod_smn, type = "nodes")
 plot(mod_smn, type = "segments", weight = 4, shadow = 2)
 plot(mod_smn, type = "full", weight = 4, shadow = 2)
 

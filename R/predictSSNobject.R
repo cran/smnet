@@ -27,22 +27,15 @@ predictSSNobject<-function(object){
     dataOriginal <- data.frame(object$internals$variables)
     for(i in 1:length(smTerms)){
       oldVariable  <- dataOriginal[smTerms[[i]]]
-      if(length(smTerms[[i]]) == 1){
-        xlxr1  <- range(oldVariable)
-        newX   <- c(newX, b_spline_basis(x=unlist(dfPred[smTerms[[i]]]), 
-                                     nseg = (object$internals$sm.basis[i] - 3), deg=3))
-      }
-      if(length(smTerms[[i]]) == 2){
-        xlxr1  <- range(oldVariable[,1])
-        xlxr2  <- range(oldVariable[,2])
-        a1     <- b_spline_basis(x=unlist(dfPred[smTerms[[i]][1]]), 
-                           xl=xlxr1[1], xr=xlxr1[2],nseg = (object$internals$sm.basis[i]-3), deg=3)
-        a2     <- b_spline_basis(x=unlist(dfPred[smTerms[[i]][2]]), 
-                           xl=xlxr2[1], xr=xlxr2[2],nseg = (object$internals$sm.basis[i]-3), deg=3)
-        newX   <- c(newX, make_spam(not_sparse_box_product(a1, a2)))
-      }
+      new_bit      <- construct_bspline_basis(as.matrix(dfPred[smTerms[[i]]]), 
+                                                     dimensions = object$internals$sm.basis[[i]], 
+                                                     cyclic = object$internals$sm.cyclic[[i]], 
+                                                     range.variables = oldVariable)
+      newX         <- c(newX, new_bit)
     }
   }
+  
+  
   
   if(object$internals$net){
     # construct network component

@@ -3,7 +3,7 @@
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Search for and Validate Weights in an SSN Object}
 
-\description{Utility function for exploring the valid weights available within an SSN object.  Intended for validating columns within an SSN object before their use in a network smooth.}
+\description{Explore SSN objects for valid stream weights for use in fitting stream network models.}
 \usage{
 show_weights(SSNobject, adjacency, netID = 1)
 }
@@ -11,7 +11,7 @@ show_weights(SSNobject, adjacency, netID = 1)
 \arguments{
   \item{SSNobject}{\code{SpatialStreamNetwork} containing data to be searched for valid network weights}
   \item{adjacency}{adjacency object corresponding to \code{SSNobject}, resulting from a call to \link{get_adjacency}}
-  \item{netID}{Positive integer indicating the network to investigate, if multiple networks are contained in\code{SSNobject}.  Default is 1.}
+  \item{netID}{Positive integer indicating the network number to investigate, if multiple networks are contained in\code{SSNobject}.  Default is 1.}
 }
 
 \value{Prints the names of valid weight variables to the console.}
@@ -100,7 +100,6 @@ network(adjacency = adjacency, weight = "shreve"),
 
 # not run - plot different summaries of the model
 plot(mod_smn, type = "covariates")
-plot(mod_smn, type = "nodes")
 plot(mod_smn, type = "segments", weight = 4, shadow = 2)
 plot(mod_smn, type = "full", weight = 4, shadow = 2)
 

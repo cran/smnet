@@ -6,7 +6,7 @@
 This function specifies all of the information required to smooth parameters over the segments of a stream network using an adjacency matrix, and a vector of flow weights.  
 }
 \usage{
-network(adjacency = NULL, weight = "autoShreve", max.df = NULL)
+network(adjacency = NULL, weight = "autoShreve", fixed.df = NULL)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -14,7 +14,7 @@ network(adjacency = NULL, weight = "autoShreve", max.df = NULL)
 }
 \item{weight}{A character string indicating the column name of a numeric vector of flow weights contained in the \code{data.object} that has been passed to \link{smnet}.  Defaults to "\code{autoShreve}" which automatically constructs a weighting based on Shreve order, useful if data does not include an appropriate weight.  For more information on choosing appropriate \code{weight} inputs from a given data set, see \link{show_weights}.
 }
-\item{max.df}{Positive scalar indicating maximum degrees of freedom to allocate to the stream network component.  Default is no upper limit equivalent to \code{max.df = n} , the number of data points.
+\item{fixed.df}{Positive scalar indicating a fixed number of degrees of freedom to allocate to the stream network component, overriding the criterion minimisation for this component. Under the default setting, NULL, the degrees of freedom are chosen automatically.
 }
 }
 
@@ -106,7 +106,6 @@ network(adjacency = adjacency, weight = "shreve"),
 
 # not run - plot different summaries of the model
 plot(mod_smn, type = "covariates")
-plot(mod_smn, type = "nodes")
 plot(mod_smn, type = "segments", weight = 4, shadow = 2)
 plot(mod_smn, type = "full", weight = 4, shadow = 2)
 

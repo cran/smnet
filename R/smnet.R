@@ -1,16 +1,20 @@
 
-smnet<-function(formula, data.object, control = NULL, method = "AICC", netID = 1)
+smnet<-function(formula, data.object, netID = 1, method = "AICC", control = NULL)
 {  
   
   adjacency <- NULL
+  default.control = list(trace = 0, maxit = 1000, checks = T, start = NULL, approx = NULL, 
+                         verbose = TRUE, tol = 10^-6, optim.method = "Nelder-Mead")
+  if(!is.null(control)) for(i in 1:length(control)) default.control[names(control)[i]]<-list(control[[i]])
+  
   
   # ERROR CHECK AND PROCESS THE control INPUT
-  if(!is.null(control)){
-    maxit <- control$maxit
+  if(!is.null(default.control)){
+    maxit <- default.control$maxit
     if(!is.null(maxit)) if(!is.wholenumber(maxit)) stop("maxit should be a positive integer or NULL", domain = NA, call. = FALSE)
-    approx <- control$approx
+    approx <- default.control$approx
     if(!is.null(approx)) if(!is.wholenumber(approx)) stop("approx should be a positive integer or NULL", domain = NA, call. = FALSE) 
-    do.checks <- control$checks
+    do.checks <- default.control$checks
     if(!is.null(do.checks)) if(!is.logical(do.checks)) stop("check should be logical or NULL", domain = NA, call. = FALSE) 
     if(is.null(do.checks)) do.checks <- TRUE
   }
@@ -43,7 +47,7 @@ smnet<-function(formula, data.object, control = NULL, method = "AICC", netID = 1
   # construct the vector of weights, apply an ordering if appropriate
   cls.sm  <- lapply(formulaout$gp$smooth.spec, class)
   net     <- "network.spec" %in% cls.sm
-  max.df  <- NULL
+  fixed.df  <- NULL
   if(net){
     networkSpecNo  <- which(cls.sm == "network.spec")
     networkSpec    <- formulaout$gp$smooth.spec[[networkSpecNo]]
@@ -62,15 +66,17 @@ smnet<-function(formula, data.object, control = NULL, method = "AICC", netID = 1
         response.locs   <- re_map_rid(response.locs, as.numeric(adjacency$rid_bid[,1]))
         weight          <- networkSpec$weight
         # set the maximum degrees of freedom for the network smooth (default of half number sites)
-        if(is.null(networkSpec$max.df)) max.df <- length(unique(data$rid))/2 else max.df <- networkSpec$max.df
+        if(!is.null(networkSpec$fixed.df)) fixed.df <- networkSpec$fixed.df
         # this happens if the user requests automatic stream weighting based on Shreve order
         if(weight == "autoShreve"){
           weight       <- adjacency_to_shreve(adjacency = adjacency)
-          weight.type  <- check_weight(adjacency, weight)
-          if(weight.type == "additive"){
-            weight       <- get_shreve_weights(adjacency = adjacency$adjacency, shreve.order = as.matrix(weight))  
-          } else if(weight.type == "unrecognised"){
-            stop("supplied weight vector is neither additive or a network weighting", domain = NA, call. = FALSE)
+          if(default.control$checks){
+            weight.type  <- check_weight(adjacency, weight)
+            if(weight.type == "additive"){
+              weight       <- get_shreve_weights(adjacency = adjacency$adjacency, shreve.order = as.matrix(weight))  
+            } else if(weight.type == "unrecognised"){
+              stop("supplied weight vector is neither additive or a network weighting", domain = NA, call. = FALSE)
+            }
           }
         } else {
           # this happens if the user requests the use of a ready made stream weighting or additive function
@@ -106,15 +112,13 @@ smnet<-function(formula, data.object, control = NULL, method = "AICC", netID = 1
     } else {ord <- rid_data <- netID <- NULL; stop("network smooth requested, but adjacency matrix is missing", domain = NA, call. = FALSE)}
   } else ord <- rid_data <- weight <- NULL
 
-
-  default.control = list(trace = 0, maxit = 500, start = NULL, approx = NULL, verbose = TRUE, tol = 10^-5)
-  if(!is.null(control)) for(i in 1:length(control)) default.control[names(control)[i]]<-list(control[[i]])
   # create model objects
   model_objects <- get_model_objects(formula = formula, data = data, 
                                      adjacency = adjacency, 
                                      response.locs = response.locs, weight = weight,  
                                      rid_data = rid_data, netID = netID, ord = ord, 
-                                     control = default.control, formulaout = formulaout)
+                                     control = default.control, formulaout = formulaout, 
+                                     fixed.df = fixed.df)
   
   #  choose optimal smooth parameters using box constrained Nelder-Mead search
   opt <- with(model_objects, {
@@ -123,11 +127,11 @@ smnet<-function(formula, data.object, control = NULL, method = "AICC", netID = 1
                  lin.means = lin.means, n.linear = n.linear)         
     } else {
       get_optimal_smooth(P.list = P.list, X.spam = X.spam, X.list=X.list, XTX.spam=XTX.spam, 
-                         response=response, control = control, net=net, n.linear = n.linear,
+                         response=response, control = default.control, net=net, n.linear = n.linear,
                          lin.names = lin.names, sm.names = sm.names, lin.means = lin.means,
-                         method = method, Pwee.list = Pwee.list, max.df = max.df)   
+                         method = method, Pwee.list = Pwee.list, fixed.df = fixed.df)   
     }
-    
+#     
 #       P.list<-model_objects$P.list
 #       Pwee.list<-model_objects$Pwee.list
 #       X.spam<-model_objects$X.spam
@@ -152,7 +156,7 @@ smnet<-function(formula, data.object, control = NULL, method = "AICC", netID = 1
   np     <- ifelse(is.null(opt$ED), ncol(model_objects$X.spam), opt$ED)
   R2.adj <- R2 - ((1-R2)*np)/(nrow(model_objects$X.spam) - np - 1)
   cat(paste("   n = ", (nrow(model_objects$X.spam)), sep = ""))
-  cat(paste("  R2.adj", " = ", round(R2.adj, 2), sep = ""))
+  cat(paste("  R2.adj", " = ", round(R2.adj, 3), sep = ""))
 
   # create output list
   outputList               <- vector("list")

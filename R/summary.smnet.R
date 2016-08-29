@@ -14,7 +14,7 @@ summary.smnet<-function(object, ...){
   fit        <- object$internals$fit
   n          <- length(object$internals$response)
   response   <- object$internals$response
-  
+
   # Summarise the linear part of the model
   linearExists <- n.linear + 1
   if(linearExists > 0){

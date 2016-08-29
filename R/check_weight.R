@@ -1,14 +1,17 @@
 
-check_weight <- function(adj, wgt, silent = F){
+check_weight <- function(adj, wgt){
   wgt <- try(as.numeric(as.matrix(wgt)))
+  # check again, in case this function is user visible
   if(class(wgt) == "numeric" & (!anyNA(wgt))){
     # pull out the bid from the adjacency object
-    bid  <- adj$rid_bid[,2]
-    nbid <- nchar(bid) 
+    bid        <- adj$rid_bid[,2]
+    # string length of bid is the network heirarchy
+    nbid       <- nchar(bid) 
     min_weight <- min(wgt)
-    # the idea here is that for a network weight, the sum of the weights at the i^th 
+    # the idea here is that for a network weight to be valid, the sum of the weights at the i^th 
     # level of the network heirarchy should equal the number of segments in the i-1^th level
     # of the network, minus the number of 'source' segments (dead_ends) that occur at i-1^th level
+    
     # for an additive weight, the idea is similar, the sum of the weights a the i^th level
     # equal the sum of the weights at the i-1^th level, minus the number of dead_ends at i-1
     # since all dead_ends will have order 1 (under Shreve - if the lowest order is different, I'll need to fix this)
@@ -26,10 +29,8 @@ check_weight <- function(adj, wgt, silent = F){
     }
     if(round(dis_additive, 6) == 0){
       weight.type <- "additive"
-      if(!silent) cat("Provided weight passes additivity check... \n")
     } else if(round(dis_network, 6)  == 0){
       weight.type <- "network"
-      if(!silent) cat("Provided weight passes network check... \n")
     } else {weight.type <- "unrecognised"}
   } else {
     weight.type <- "unrecognised"

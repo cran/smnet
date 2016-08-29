@@ -1,5 +1,6 @@
 
-plot_segments<-function(x, weight, netID, se, sites, shadow, ...){    
+plot_segments<-function(x, weight, netID, se, sites, sites.col, sites.cex, shadow, legend.text,
+                        legend.range, network.col, key,...){    
   
   # break up beta_hat
   getcol    <- function(M) ifelse(ncol(M) == "NULL", 1, ncol(M)) 
@@ -29,7 +30,11 @@ plot_segments<-function(x, weight, netID, se, sites, shadow, ...){
   fitted_segment <- spatial_comp[ord]
   # SET UP THE COLOUR SCALE FOR PLOTTING
   nlevels      <- 20
-  zlim         <- range(fitted_segment, finite = TRUE)
+  if(is.null(legend.range)){
+    zlim         <- range(fitted_segment, finite = TRUE)
+  } else {
+    zlim         <- legend.range
+  }
   brks         <- pretty(zlim, n = 10)
   nclasses     <- length(brks) - 1 
   nnodes       <- length(fitted_segment)
@@ -46,11 +51,14 @@ plot_segments<-function(x, weight, netID, se, sites, shadow, ...){
   # SET UP THE PLOTTING REGION
   plot.new()
   plot.window(xlim = c(0, 1), ylim = range(brks), xaxs = "i", yaxs = "i")
-  
-  # PLOT THE LEGEND
-  rect(0, brks[-length(brks)], 1, brks[-1L], col = colorPalette)
-  axis(4)
-  box()
+
+  if(key){
+    # PLOT THE LEGEND
+    rect(0, brks[-length(brks)], 1, brks[-1L], col = colorPalette)
+    axis(4)
+    mtext(side = 4, legend.text, line = 2)
+    box()
+  }
   
   # GET WEIGHT IF REQUESTED
   if(!is.null(weight)) shreve  <- adjacency_to_shreve(adjacency = x$internals$adjacency)[ord]
@@ -96,18 +104,25 @@ plot_segments<-function(x, weight, netID, se, sites, shadow, ...){
       for(j in 1:length(x$ssn.object@lines[[z]])){
         if(fitted_segment[i] > lower.breaks[k] & fitted_segment[i] <= upper.breaks[k]){
           coords <- x$ssn.object@lines[[z]]@Lines[[j]]@coords
-          lines(coords[c(1, nrow(coords)), ], col = colorPalette[k], lwd = lwd_i)
+          coli   <- ifelse(is.null(network.col), colorPalette[k], network.col)
+          lines(coords[c(1, nrow(coords)), ], col = coli, lwd = lwd_i)
         }
       }
     }
   }
   if(sites){
-    data_obs <- getSSNdata.frame(x$ssn.object)
-    data_obs <- data_obs[data_obs$netID == netID, ]
-    data_obs_locs <- unique(paste(data_obs$NEAR_X, data_obs$NEAR_Y, sep = "_"))
-    data_obs_locs <- Reduce("rbind", strsplit(data_obs_locs, "[_]"))
-    points(data_obs_locs[,1], data_obs_locs[,2], pch = 20, col = 1, cex = 2)
-    points(data_obs_locs[,1], data_obs_locs[,2], pch = 20, col = "blue", cex = 1.5)
+    data_obs      <- getSSNdata.frame(x$ssn.object)
+    data_obs      <- data_obs[data_obs$netID == netID, ]
+    locs_char     <- paste(data_obs$NEAR_X, data_obs$NEAR_Y, sep = "_")
+    mn_resp       <- tapply(x$internals$response, locs_char, mean)
+    locs_char     <- names(mn_resp)
+    pts_obs       <- Reduce("rbind", lapply(strsplit(locs_char, "[_]"), as.numeric))
+    if(is.null(sites.col)){
+      col.ints  <- cut(mn_resp, breaks = brks, labels = FALSE, right = FALSE)
+      sites.col <- colorPalette[col.ints]
+    }
+    points(pts_obs[,1], pts_obs[,2], pch = 20, col = 1, cex = 1.5*sites.cex)
+    points(pts_obs[,1], pts_obs[,2], pch = 20, col = sites.col, cex = sites.cex)
   }
   do.call(title, updated.parameters)
   if(is.null(updated.parameters$xaxt)){

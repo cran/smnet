@@ -9,33 +9,33 @@ The formula interpreter used for penalised additive components is modelled on th
 }
 
 \usage{
-smnet(formula, data.object, control = NULL, method = "AICC", netID = 1)
+smnet(formula, data.object, netID = 1, method = "AICC", control = NULL)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
 \item{formula}{A formula statement similar to those used by \code{lm} and \code{mgcv:::gam}.  Smooth functions are represented with \code{m(..., k = 20)} function, up to 2d smooth interactions are currently supported.  Spatial network components are specified using \code{network(...)} function.  Further details can be found in \link{m} and \link{network} and the examples below.}
 
 \item{data.object}{An object of class "SpatialStreamNetwork"}
-
-\item{control}{A list of options passed to the optimiser for smoothness selection. 
-\code{maxit}, default = 500, limits the number of iterations made by the optimiser.  \code{approx}, positive integer specifying the number samples to collect using a Monte-Carlo method to approximate the performance criterion surface when direct evaluation is too slow - this takes advantage of matrix sparsity and may be much faster if the network has a large number of segments or the data is large - \code{approx  = 100} often works well in these cases (defaults to \code{NULL}).  \code{checks}, logical, default = \code{TRUE}, specifies whether additivity checks should be performed on the set of input weights for network modelling; useful when the networks are very large and checks can be expensive.}
-
-\item{method}{Character string determining the performance criterion for choosing optimal smoothness, options are \code{"AICC"}, \code{"AIC"} or \code{"GCV"}. 
-}
 \item{netID}{Integer indicating the particular stream network to model, generally only user-specified when multiple networks are contained within \code{data.object}, default is 1. 
 }
+\item{method}{Character string determining the performance criterion for choosing optimal smoothness, options are \code{"AICC"}, \code{"AIC"} or \code{"GCV"}. 
+}
+
+\item{control}{A list of options that control smoothness selection via optimisation.  See 'Details'.}
 }
 
 \value{Object of class \code{smnet} with components
-\item{fitted.values}{vector of fitted mean values}
-\item{residuals}{vector of residuals, response minus the fitted values}
-\item{coefficients}{vector of estimated coefficients}
-\item{R2}{the R^2 statistic}
-\item{R2.adj}{the adjusted R^2 statistic}
-\item{df.residual}{the residual degrees of freedom}
-\item{ssn.object}{the unchanged SSN data object}
-\item{internals}{various model objects for internal use by other functions}
+\item{fitted.values}{vector of fitted values}
+\item{residuals}{vector of residuals: response minus fitted values}
+\item{coefficients}{vector of parameter estimates}
+\item{R2}{R^2 statistic}
+\item{R2.adj}{adjusted R^2 statistic}
+\item{df.residual}{residual degrees of freedom}
+\item{ssn.object}{unchanged SSN input data object}
+\item{internals}{model objects for internal use by other functions}
 }
+\details{
+\code{control} is a list whose elements control smoothness selection:\code{maxit} limits the number of iterations made by the optimiser (default  = 500).  \code{approx}, positive integer, if specified indicates the number of Monte-Carlo samples to collect using an approximate version of performance criterion when direct evaluation is slow - this may be much faster if the network has a large number of segments or the data is large, for example \code{approx  = 100} often works well (defaults to \code{NULL}).  \code{checks}, logical, specifies whether additivity checks should be performed on the input weights default = \code{TRUE}.  \code{trace}, default = 0, if set to 1, \code{optim} will print progress.   \code{tol}, the relative tolerance of \code{optim}.  \code{optim.method}, the optimiser - default is "Nelder-Mead" see \code{?optim} for details.}
 
 \references{
 Ver Hoef, J.M.,  Peterson, E.E., Clifford, D., Shah, R.  (2012)   SSN: An R Package for Spatial Statistical Modeling on Stream Networks 
@@ -130,10 +130,9 @@ network(adjacency = adjacency, weight = "shreve"),
                        data.object = sims, netID = 1)
 
 # not run - plot different summaries of the model
-plot(mod_smn, type = "covariates")
-plot(mod_smn, type = "nodes")
-plot(mod_smn, type = "segments", weight = 4, shadow = 2)
-plot(mod_smn, type = "full", weight = 4, shadow = 2)
+plot(mod_smn, type = "network-covariates")
+plot(mod_smn, type = "network-segments", weight = 4, shadow = 2)
+plot(mod_smn, type = "network-full", weight = 4, shadow = 2)
 
 # obtain predictions at the prediction locations and plot 
 # against true values
