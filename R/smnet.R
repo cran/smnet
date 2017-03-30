@@ -19,6 +19,9 @@ smnet<-function(formula, data.object, netID = 1, method = "AICC", control = NULL
     if(is.null(do.checks)) do.checks <- TRUE
   }
   
+  
+  
+  
   # ERROR CHECK AND PROCESS THE method INPUT
   if(!method %in% c("AICC", "AIC", "GCV")){
     err.msg <- "method should be either AIC, AICC or GCV"

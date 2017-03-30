@@ -35,24 +35,24 @@ Alastair Rushworth
 
 # Set up an SSN object - this part taken 
 # from the SSN:::SimulateOnSSN help file
-example_network<- createSSN(
+example_network_5<- createSSN(
                      n          = 50,
                      obsDesign  = binomialDesign(200), 
                      predDesign = binomialDesign(50),
                      importToR  = TRUE, 
-                     path = paste(tempdir(),"/example_network",sep = ""),
+                     path = paste(tempdir(),"/example_network_5",sep = ""),
                      treeFunction = iterativeTreeLayout
                      )
 
 # plot the simulated network structure with prediction locations
-# plot(example_network, bty = "n", xlab = "x-coord", ylab = "y-coord")
+# plot(example_network_5, bty = "n", xlab = "x-coord", ylab = "y-coord")
 
 ## create distance matrices, including between predicted and observed
-createDistMat(example_network, "preds", o.write=TRUE, amongpred = TRUE)
+createDistMat(example_network_5, "preds", o.write=TRUE, amongpred = TRUE)
 
 ## extract the observed and predicted data frames
-observed_data            <- getSSNdata.frame(example_network, "Obs")
-prediction_data          <- getSSNdata.frame(example_network, "preds")
+observed_data            <- getSSNdata.frame(example_network_5, "Obs")
+prediction_data          <- getSSNdata.frame(example_network_5, "preds")
 
 ## associate continuous covariates with the observation locations
 #  data generated from a normal distribution
@@ -68,7 +68,7 @@ prediction_data[,"X2"]   <- pred^2
 
 ## simulate some Gaussian data that follows a 'tail-up' spatial process
 sims <- SimulateOnSSN(
-               ssn.object      = example_network, 
+               ssn.object      = example_network_5, 
                ObsSimDF        = observed_data, 
                PredSimDF       = prediction_data,  
                PredID          = "preds",  
@@ -88,7 +88,7 @@ sims               <- putSSNdata.frame(sim1DFpred, sims, "preds")
 
 # create the adjacency matrix for use with smnet
 adjacency    <- get_adjacency(
-                  paste(tempdir(), "/example_network", sep = ""), 
+                  paste(tempdir(), "/example_network_5", sep = ""), 
                   net = 1
                   )
 
